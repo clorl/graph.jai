@@ -1,7 +1,6 @@
 #load "draw.jai";
 
 // Return true to end the program
-off := 0;
 loop :: () -> bool {
 
 		// --- INPUT
@@ -32,13 +31,17 @@ loop :: () -> bool {
 
 
 				new_ctx := context;
-				off += 1;
 				push_context new_ctx {
 						context.transform.basis = .{
 								100, 0,
 								0,  -100
 						};
-						context.transform.origin = .{ Graphics_Settings.win_width / 2.0, Graphics_Settings.win_height / 2.0 } + Vector2.{xx off, xx off};
+						context.transform.origin = .{ Graphics_Settings.win_width / 2.0, Graphics_Settings.win_height / 2.0 };
+						{
+								using context.transform.origin;
+								x += 0.5 * x * xx cos(seconds_since_init());
+								y += 0.5 * x * xx sin(seconds_since_init());
+						}
 						//draw_polygon(.{0.5, 0.5}, 1, 3, outline_thickness = 10, filled = false);
 
 						// draw_line(.jk{100, 100}, .{200, 200}, Colors.white, thickness = 10);
