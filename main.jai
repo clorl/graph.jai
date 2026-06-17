@@ -1,6 +1,7 @@
 #load "draw.jai";
 
 // Return true to end the program
+off := 0;
 loop :: () -> bool {
 
 		// --- INPUT
@@ -31,22 +32,28 @@ loop :: () -> bool {
 
 
 				new_ctx := context;
+				off += 1;
 				push_context new_ctx {
 						context.transform.basis = .{
 								100, 0,
 								0,  -100
 						};
-						context.transform.origin = .{ Graphics_Settings.win_width / 2.0, Graphics_Settings.win_height / 2.0 };
-						context.transform.origin -= .{30, 30};
-						draw_arrow(.{0, 0}, .{1, 0}, Colors.red);
-						draw_arrow(.{0, 0}, .{0, 1}, Colors.green);
+						context.transform.origin = .{ Graphics_Settings.win_width / 2.0, Graphics_Settings.win_height / 2.0 } + Vector2.{xx off, xx off};
 						//draw_polygon(.{0.5, 0.5}, 1, 3, outline_thickness = 10, filled = false);
 
-						// draw_line(.{100, 100}, .{200, 200}, Colors.white, thickness = 10);
+						// draw_line(.jk{100, 100}, .{200, 200}, Colors.white, thickness = 10);
 						// draw_line(.{1, 1}, .{2, 2}, Colors.white, thickness = 10);
 
 						//draw_circle(.{1, 1}, 1, filled = false);
-						draw_grid(Transform2D.{});
+						draw_grid(Transform2D.{}, Colors.foreground * .5, 1);
+						draw_grid(Transform2D.{
+								basis = { .5, 0,
+									0, .5
+								}
+						}, Colors.foreground * .34, .5);
+						draw_grid(scale(Transform2D.{}, 4), Colors.foreground * .8, 1);
+						draw_arrow(.{0, 0}, .{1, 0}, Colors.red);
+						draw_arrow(.{0, 0}, .{0, 1}, Colors.green);
 				}
 
 				immediate_flush();
@@ -121,7 +128,7 @@ main :: () {
 		} else #if OS == .LINUX {
 				X11 :: #import "X11";
 				typelist := string.["url/url", "text/uri-list", "text/plain", "application/octet-stream"];
-				X11.enable_drag_and_drop(my_window, typelist);
+				X11.enable_drag_and_drop(window, typelist);
 		} else #if OS == .MACOS {
 				assert(false, "MacOS is not supported");
 		}

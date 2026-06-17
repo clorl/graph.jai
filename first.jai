@@ -8,6 +8,7 @@ build :: () {
 				using opts;
 				output_executable_name = "main";
 				text_output_flags = 0;
+				use_ansi_color = false;
 		}
     set_build_options(opts, w);
 		
@@ -21,7 +22,7 @@ build :: () {
 		}
 }
 
-#run,stallable build();
+#run build();
 
 #import "Compiler";
 #import "Basic";

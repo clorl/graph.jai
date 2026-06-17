@@ -38,45 +38,46 @@ draw_arrow :: (from: Vector2, to: Vector2, color := WHITE, thickness := 2.0, hea
 		immediate_triangle(xyz(p0, 0), xyz(p1, 0), xyz(p2, 0), color, color, color);
 }
 
-draw_grid :: (t: Transform2D, color := WHITE, thickness := 2.0, subdivide := false, subdivision_count := 1, subdivision_color := NOCOLOR, subdivision_thickness := -1.0) {
-		sub_color := subdivision_color;
-		if subdivide {
-				if subdivision_color == NOCOLOR sub_color = color * .7;
-				if subdivision_thickness <= 0 subdivision_thickness = 0.5 * thickness;
-		}
+draw_grid :: (t: Transform2D, color := WHITE, thickness := 2.0) {
+        using Graphics_Settings;
 
-		using Graphics_Settings;
+        combined_transform := context.transform * t;
+        inv_combined := inverse(combined_transform);
 
-		inv := inverse(context.transform);
-		screen_start := inv * Vector2.{0, 0};
-		screen_end := inv * Vector2.{ xx win_width, xx win_height };
+        c0 := inv_combined * Vector2.{0, 0};
+        c1 := inv_combined * Vector2.{xx win_width, 0};
+        c2 := inv_combined * Vector2.{0, xx win_height};
+        c3 := inv_combined * Vector2.{xx win_width, xx win_height};
 
-		w := abs(screen_end.x - screen_start.x);
-		h := abs(screen_end.y - screen_start.y);
+        min_x := min(min(c0.x, c1.x), min(c2.x, c3.x));
+        max_x := max(max(c0.x, c1.x), max(c2.x, c3.x));
+        min_y := min(min(c0.y, c1.y), min(c2.y, c3.y));
+        max_y := max(max(c0.y, c1.y), max(c2.y, c3.y));
 
-		hlines: int = xx (w / length(t2d_right(t)));
-		vlines: int = xx (h / length(t2d_up(t)));
+        start_x := cast(int) floor(min_x);
+        end_x := cast(int) ceil(max_x);
+        start_y := cast(int) floor(min_y);
+        end_y := cast(int) ceil(max_y);
 
-		for 0..vlines-1 {
-				x : float = (w / vlines) * it;
-				sx := min(screen_start.x, screen_end.x);
-				sy := min(screen_start.y, screen_end.y);
-				ey := max(screen_start.y, screen_end.y);
-				draw_line(
-						.{sx + x, sy},
-						.{sx + x, sy},
-				);
-				//print("%\n", Vector2.{x, screen_start.y});
-		}
-
-		for 0..abs(hlines)-1 {
-				y : float = (h / hlines) * it;
-				draw_line(
-						.{screen_start.x, screen_start.y + y},
-						.{screen_end.x, screen_start.y + y},
-				);
-		}
-		//print("% % \n", hlines, vlines);
+        for start_x..end_x {
+                p0_grid := Vector2.{xx it, min_y};
+                p1_grid := Vector2.{xx it, max_y};
+                
+                p0 := t * p0_grid;
+                p1 := t * p1_grid;
+                
+                draw_line(p0, p1, color, thickness);
+        }
+        
+        for start_y..end_y {
+                p2_grid := Vector2.{min_x, xx it};
+                p3_grid := Vector2.{max_x, xx it};
+                
+                p2 := t * p2_grid;
+                p3 := t * p3_grid;
+                
+                draw_line(p2, p3, color, thickness);
+        }
 }
 
 draw_polygon :: (pos: Vector2, diameter := 1.0, sides := 4, color := WHITE, filled := true, angle_offset: float = 0, outline_thickness := 2.0) {
@@ -136,6 +137,19 @@ t2d_right :: inline (t: Transform2D) -> Vector2 {
 
 t2d_up :: inline (t: Transform2D) -> Vector2 {
 		return .{t.basis.coef[1][0], t.basis.coef[1][1]};
+}
+
+scale :: inline (t: Transform2D, s: float) -> Transform2D {
+		r := t2d_right(t) * s;
+		u := t2d_up(t) * s;
+
+		return .{
+				{
+						r.x, u.x,
+						r.y, u.y
+				},
+				t.origin
+		};
 }
 
 operator * :: (t: Transform2D, v: Vector2) -> Vector2 {
