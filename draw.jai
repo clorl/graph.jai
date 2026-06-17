@@ -14,21 +14,27 @@ draw_line :: (from: Vector2, to: Vector2, color := WHITE, thickness := 2.0) {
 		);
 }
 
-draw_arrow :: (from: Vector2, to: Vector2, color := WHITE, thickness := 2.0, head_size : float = .1) {
+draw_arrow :: (from: Vector2, to: Vector2, color := WHITE, thickness := 2.0, head_size: int = 16) {
 		t := context.transform;
-		head_size = clamp(head_size, 0, 1.0);
-		dir := to - from;
-		new_dir := dir * (1 - head_size);
-		line_end := from + new_dir;
-
-		draw_line(from, line_end, color, thickness);
-
+		dir := t * to - t * from;
+		new_length := 1.0 - (head_size - length(dir));
+		new_dir := normalize(dir) * new_length;
+		line_end := t * from + new_dir;
 		normal := normalize(.{new_dir.y, -new_dir.x});
-		head_size_transformed := distance(t * to, t * line_end) / 2.0;
+		ht := thickness / 2.0;
 
+		immediate_quad(
+				t * from + normal * ht,
+				t * from - normal * ht,
+				line_end - normal * ht,
+				line_end + normal * ht,
+				color
+		);
+
+		hs := head_size / 3.0;
 		p0 := t * to;
-		p1 := t * line_end + normal * head_size_transformed;
-		p2 := t * line_end - normal * head_size_transformed;
+		p1 := line_end + normal * hs;
+		p2 := line_end - normal * hs;
 		immediate_triangle(xyz(p0, 0), xyz(p1, 0), xyz(p2, 0), color, color, color);
 }
 
@@ -40,14 +46,37 @@ draw_grid :: (t: Transform2D, color := WHITE, thickness := 2.0, subdivide := fal
 		}
 
 		using Graphics_Settings;
-		tinv := inverse(t);
-		new_t := context.transform * t;
-		new_t.origin.x = fmod_cycling(new_t.origin.x, xx win_width);
-		new_t.origin.y = fmod_cycling(new_t.origin.y, xx win_height);
 
-		screen_start := tinv * t.origin;
-		screen_end := screen_start + Vector2.{xx win_width, xx win_height};
-		draw_arrow(screen_start, t.origin);
+		inv := inverse(context.transform);
+		screen_start := inv * Vector2.{0, 0};
+		screen_end := inv * Vector2.{ xx win_width, xx win_height };
+
+		w := abs(screen_end.x - screen_start.x);
+		h := abs(screen_end.y - screen_start.y);
+
+		hlines: int = xx (w / length(t2d_right(t)));
+		vlines: int = xx (h / length(t2d_up(t)));
+
+		for 0..vlines-1 {
+				x : float = (w / vlines) * it;
+				sx := min(screen_start.x, screen_end.x);
+				sy := min(screen_start.y, screen_end.y);
+				ey := max(screen_start.y, screen_end.y);
+				draw_line(
+						.{sx + x, sy},
+						.{sx + x, sy},
+				);
+				//print("%\n", Vector2.{x, screen_start.y});
+		}
+
+		for 0..abs(hlines)-1 {
+				y : float = (h / hlines) * it;
+				draw_line(
+						.{screen_start.x, screen_start.y + y},
+						.{screen_end.x, screen_start.y + y},
+				);
+		}
+		//print("% % \n", hlines, vlines);
 }
 
 draw_polygon :: (pos: Vector2, diameter := 1.0, sides := 4, color := WHITE, filled := true, angle_offset: float = 0, outline_thickness := 2.0) {
@@ -97,7 +126,7 @@ inverse :: inline (t: Transform2D) -> Transform2D {
 
 		return .{
 				inverse,
-				-t.origin,
+				inverse * -t.origin,
 		};
 }
 

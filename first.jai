@@ -37,13 +37,16 @@ loop :: () -> bool {
 								0,  -100
 						};
 						context.transform.origin = .{ Graphics_Settings.win_width / 2.0, Graphics_Settings.win_height / 2.0 };
+						context.transform.origin -= .{30, 30};
 						draw_arrow(.{0, 0}, .{1, 0}, Colors.red);
 						draw_arrow(.{0, 0}, .{0, 1}, Colors.green);
 						//draw_polygon(.{0.5, 0.5}, 1, 3, outline_thickness = 10, filled = false);
 
-						//draw_line(.{1, 1}, .{-1.6, 2}, Colors.white, thickness = 10);
+						// draw_line(.{100, 100}, .{200, 200}, Colors.white, thickness = 10);
+						// draw_line(.{1, 1}, .{2, 2}, Colors.white, thickness = 10);
+
 						//draw_circle(.{1, 1}, 1, filled = false);
-						//draw_grid(Transform2D.{});
+						draw_grid(Transform2D.{});
 				}
 
 				immediate_flush();
