@@ -115,6 +115,7 @@ draw_circle :: (pos: Vector2, diameter := 1.0, color := WHITE, filled := true, q
 Transform2D :: struct {
 		basis := Matrix2_Identity;
 		origin := Vector2.{0, 0};
+		#overlay (origin) position: Vector2;
 }
 
 inverse :: inline (t: Transform2D) -> Transform2D {
@@ -131,17 +132,24 @@ inverse :: inline (t: Transform2D) -> Transform2D {
 		};
 }
 
-t2d_right :: inline (t: Transform2D) -> Vector2 {
+right :: inline (t: Transform2D) -> Vector2 {
 		return .{t.basis.coef[0][0], t.basis.coef[0][1]};
 }
 
-t2d_up :: inline (t: Transform2D) -> Vector2 {
+up :: inline (t: Transform2D) -> Vector2 {
 		return .{t.basis.coef[1][0], t.basis.coef[1][1]};
 }
 
+get_scale :: inline (t: Transform2D) -> Vector2 {
+		return .{
+				length(right(t)),
+				length(up(t))
+		};
+}
+
 scale :: inline (t: Transform2D, s: float) -> Transform2D {
-		r := t2d_right(t) * s;
-		u := t2d_up(t) * s;
+		r := right(t) * s;
+		u := up(t) * s;
 
 		return .{
 				{
