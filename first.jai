@@ -1,6 +1,6 @@
-// Return true to end the program
+#load "draw.jai";
 
-theme: Gui.Overall_Theme;
+// Return true to end the program
 loop :: () -> bool {
 
 		// --- INPUT
@@ -20,36 +20,40 @@ loop :: () -> bool {
 		}
 		// --- LOGIC
 		// --- RENDERING
+		{
+				using Simp;
+				set_shader_for_color();
+
+				{
+						using Colors.background;
+						clear_render_target(x, y, z, w);
+				}
+
+
+				new_ctx := context;
+				push_context new_ctx {
+						context.transform.basis = .{
+								100, 0,
+								0,  -100
+						};
+						context.transform.origin = .{ Graphics_Settings.win_width / 2.0, Graphics_Settings.win_height / 2.0 };
+						draw_arrow(.{0, 0}, .{1, 0}, Colors.red);
+						draw_arrow(.{0, 0}, .{0, 1}, Colors.green);
+						//draw_polygon(.{0.5, 0.5}, 1, 3, outline_thickness = 10, filled = false);
+
+						//draw_line(.{1, 1}, .{-1.6, 2}, Colors.white, thickness = 10);
+						//draw_circle(.{1, 1}, 1, filled = false);
+						//draw_grid(Transform2D.{});
+				}
+
+				immediate_flush();
+		}
 
 		// --- UI
 		{
 				using Gui;
-
-				proc := default_theme_procs[xx Default_Themes.Default];
-				theme = proc();
-				set_default_theme(theme);
-				
-				{
-						using Colors.background;
-						Simp.clear_render_target(x, y, z, w);
-				}
-
-				x, y, width, height := get_dimensions(window, true);
-				ui_per_frame_update(window, width, height, seconds_since_init());
-
-				button_theme := theme.button_theme;
-				button_theme.font = Fonts.default;
-				button_theme.enable_variable_frame_thickness = true;
-
-				using Graphics_Settings;
-				k := win_height * .1;
-				r := get_rect(k*.5, 2.1*k, 3*k, k);
-
-				button_theme.label_theme.alignment = .Left;
-				pressed := button(r, "Hello", *button_theme);
 		}
 
-		//Simp.immediate_flush();
 		Simp.swap_buffers(window);
 
 		return false;
@@ -89,6 +93,8 @@ init :: (first_init := false) {
 						font = Fonts.default;
 				}
 		}
+
+		set_default_theme(Ui_Settings.theme);
 }
 
 main :: () {
@@ -143,6 +149,11 @@ main :: () {
 								if should_reinit init();
 						}
 				}
+				{
+						using Gui;
+						x, y, width, height := get_dimensions(window, true);
+						ui_per_frame_update(window, width, height, seconds_since_init());
+				}
 
 				should_quit = loop();
 				reset_temporary_storage();
@@ -169,8 +180,7 @@ Colors : struct {
 		red				:= Vector4.{0.95, 0.55, 0.66, 1};
 		blue			:= Vector4.{0.54, 0.71, 0.98, 1};
 		green			:= Vector4.{0.65, 0.89, 0.63, 1};
-		purple			:= Vector4.{};
-		yellow			:= Vector4.{};
+		white        := Vector4.{1, 1, 1, 1};
 }
 
 Fonts : struct {
@@ -192,5 +202,5 @@ WINDOW_TITLE :: "App FORCE_FLOAT";
 #import "Window_Creation";
 Input :: #import "Input";
 Simp :: #import "Simp";
-Gui :: #import "GetRect";
+Gui :: #import "GetRect_LeftHanded";
 #import "Math";
