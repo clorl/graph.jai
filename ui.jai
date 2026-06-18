@@ -16,16 +16,16 @@ Layout_Constraint :: enum {
 		None				:: 0;
 
 		Begin				:: 1;
-		Left				:: 1;
-		Top					:: 1;
+		Left				:: Begin;
+		Top					:: Begin;
 
 		End					:: 2;
-		Right				:: 2;
-		Bottom				:: 2;
+		Right				:: End;
+		Bottom				:: End;
 
 		BeginAndEnd		:: 3;
-		LeftAndRight	:: 3;
-		TopAndBottom	:: 3;
+		LeftAndRight	:: BeginAndEnd;
+		TopAndBottom	:: BeginAndEnd;
 		
 		Center				:: 4;
 		Scale				:: 5;
@@ -110,8 +110,31 @@ Layout :: struct {
 compute_layout :: (layout: *Layout, parent: Layout, parent_available_space: Rect) -> bool {
 		//if layout.rect.w <= 0 || layout.rect.h <= 0 return false, .{};
 		//if parent_layout.clip_overflow_contents && !point_within(result.position, parent.rect) return false, .{};
-		
-		layout.position += parent.position;
+		if parent.kind == .Free {
+				if layout.v_constraint == {
+						case .Top;
+						layout.y += parent.y;
+						case .Bottom;
+						layout.y += (parent.y + parent.height) - layout.height - 2 * layout.y;
+						case .TopAndBottom;
+						layout.y += parent.y;
+						layout.height = parent.height - layout.height;
+						case .Center;
+						layout.y += (parent.y + parent.height / 2.0) - layout.height / 2.0;
+				}
+
+				if layout.h_constraint == {
+						case .Left;
+						layout.x += parent.x;
+						case .Right;
+						layout.x += (parent.x + parent.width) - layout.width - 2 * layout.x;
+						case .LeftAndRight;
+						layout.x += parent.x;
+						layout.width = parent.width - layout.width;
+						case .Center;
+						layout.x += parent.x + parent.width / 2.0 - layout.width / 2.0;
+				}
+		}
 		return true;
 }
 
@@ -126,10 +149,10 @@ my_ui_init :: () {
 		};
 
 		using sub;
-		layout := Layout.{ rect = get_rect(20, 20, 200, 100) };
-		compute_layout(*layout, root_layout, root_layout.rect);
+		subwindow_layout = Layout.{ rect = get_rect(20, 20, 200, 100) };
+		compute_layout(*subwindow_layout, root_layout, root_layout.rect);
 
-		rect = layout.rect;
+		rect = subwindow_layout.rect;
 		draw = draw_subwindow;
 		title_text = "Subwindow";
 		open = true;
@@ -140,11 +163,24 @@ my_ui_init :: () {
 
 draw_subwindow :: (state: *Subwindow_State, r: Rect, data: *void) {
 
-		btn_layout := Layout.{
-				rect = get_rect(10, 30, 128, 32)
-		};
-		compute_layout(*btn_layout, subwindow_layout, subwindow_layout.rect);
-		button(btn_layout.rect, "Hello");
+		id := 0;
+		for h: 1..4 for v: 1..4 {
+				if h == 3 || v == 3 continue;
+				id += 1;
+				hstrings := string.["", "Left", "Right", "Left+Right", "Center"];
+				vstrings := string.["", "Top", "Bottom", "Top+Bottom", "Center"];
+
+				btn_layout : Layout = {
+						x = 32,
+						y= 32,
+						width = 128,
+						height = 32,
+						h_constraint = cast(Layout_Constraint) h,
+						v_constraint = cast(Layout_Constraint) v,
+				};
+				compute_layout(*btn_layout, subwindow_layout, subwindow_layout.rect);
+				button(btn_layout.rect, tprint("% %", hstrings[h], vstrings[v]), identifier=id);
+		}
 }
 
 draw_ui :: () {
@@ -163,10 +199,6 @@ draw_ui :: () {
 		subwindow_layout = Layout.{ rect = sub.rect };
 		compute_layout(*subwindow_layout, root_layout, root_layout.rect);
 		add_subwindow(*sub);
-
-		// btn_layout := Layout.{ rect = get_rect(400, 400, 80, 20) };
-		// compute_layout(*btn_layout, subwindow_layout, subwindow_layout.rect);
-		// button(btn_layout.rect, "Hello");
 
 		draw_popups();
 }
