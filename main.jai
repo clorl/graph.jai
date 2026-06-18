@@ -10,6 +10,8 @@ loop :: () -> bool {
 				if type == .QUIT || type == .KEYBOARD && key_pressed && key_code == .ESCAPE
 				then return true;
 
+				Gui.getrect_handle_event(it);
+
 				if type == {
 						// case .DRAG_AND_DROP_FILES;
 						// for dropped_files free(it);
@@ -48,8 +50,7 @@ loop :: () -> bool {
 		}
 
 		// --- UI
-		{
-		}
+		draw_ui();
 
 		Simp.swap_buffers(window);
 
@@ -64,7 +65,7 @@ graph_init :: (neighbors := 3) {
 // Initializes the window and stuff after creation
 init :: (first_init := false) {
 		if first_init {
-				ui_init();
+				Gui.ui_init();
 				graph_init();
 		}
 
@@ -133,6 +134,8 @@ main :: () {
 						}
 				}
 
+				x, y, width, height := get_dimensions(window, true);
+				Gui.ui_per_frame_update(window, width, height, seconds_since_init());
 				should_quit = loop();
 				reset_temporary_storage();
 		}
