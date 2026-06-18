@@ -1,5 +1,84 @@
+#load "ui.jai";
 #load "draw.jai";
-#load "app.jai";
+#load "graph.jai";
+
+loop :: () -> bool {
+
+		// --- INPUT
+		for Input.events_this_frame {
+				using it;
+				if type == .QUIT || type == .KEYBOARD && key_pressed && key_code == .ESCAPE
+				then return true;
+
+				if type == {
+						// case .DRAG_AND_DROP_FILES;
+						// for dropped_files free(it);
+						// array_reset(*dropped_files);
+						// for event.files array_add(*dropped_files, copy_string(it));
+				}
+		}
+
+		// --- LOGIC
+
+
+		// --- RENDERING
+		{
+				using Simp;
+				set_shader_for_color();
+				{ using Colors.background; clear_render_target(x, y, z, w); }
+
+				new_ctx := context; push_context new_ctx {
+						context.transform.basis = .{100, 0, 0,  -100};
+						context.transform.origin = .{ Graphics_Settings.win_width / 2.0, Graphics_Settings.win_height / 2.0 };
+
+						draw_grid(Transform2D.{}, Colors.foreground * .5, 1);
+						draw_grid(Transform2D.{
+								basis = { .5, 0,
+									0, .5
+								}
+						}, Colors.foreground * .34, .5);
+						draw_grid(scale(Transform2D.{}, 4), Colors.foreground * .8, 1);
+						draw_arrow(.{0, 0}, .{1, 0}, Colors.red);
+						draw_arrow(.{0, 0}, .{0, 1}, Colors.green);
+
+						render_graph(*graph);
+				}
+
+				immediate_flush();
+		}
+
+		// --- UI
+		{
+		}
+
+		Simp.swap_buffers(window);
+
+		return false;
+}
+
+graph_init :: (neighbors := 3) {
+		graph = create_graph(3);
+		graph_apply_physics(*graph, 100);
+}
+
+// Initializes the window and stuff after creation
+init :: (first_init := false) {
+		if first_init {
+				ui_init();
+				graph_init();
+		}
+
+
+		{ // --- LOAD FONTS
+				size := Graphics_Settings.win_height / 24;
+				inter_tight := Simp.get_font_at_size("fonts/Inter_Tight/static", "InterTight-Medium.ttf", size);
+				jetbrains_mono := Simp.get_font_at_size("fonts/JetBrains_Mono", "JetBrainsMono-VariableFont_wght.ttf", size);
+
+				Fonts.mono = jetbrains_mono;
+				Fonts.sans = inter_tight;
+				Fonts.default = Fonts.sans;
+		}
+}
 
 main :: () {
 		frame_last_time := seconds_since_init();
@@ -53,11 +132,6 @@ main :: () {
 								if should_reinit init();
 						}
 				}
-				{
-						using Gui;
-						x, y, width, height := get_dimensions(window, true);
-						ui_per_frame_update(window, width, height, seconds_since_init());
-				}
 
 				should_quit = loop();
 				reset_temporary_storage();
@@ -72,10 +146,6 @@ Graphics_Settings : struct {
 		limit_fps := false;
 		target_fps := 60;
 		target_dt := 1.0/60; //@Cleanup
-}
-
-Ui_Settings: struct {
-		theme: Gui.Overall_Theme;
 }
 
 Colors : struct {
@@ -99,6 +169,7 @@ window: Window_Type;
 #add_context frame_start_time: float;
 #add_context delta_time: float = 0.0;
 #add_context start_time: Apollo_Time;
+#add_context time_scale: float = .2;
 
 WINDOW_TITLE :: "App FORCE_FLOAT";
 
