@@ -45,7 +45,7 @@ Layout_Kind :: enum {
 
 Sizing_Mode :: enum {
 		Fixed;
-		HugContents; //@Todo
+		// HugContents; To achieve this, first compute the child's layout and set sizing to fixed
 		Fill;
 }
 
@@ -79,7 +79,6 @@ Layout :: struct {
 		children_gap: float = 0;
 		auto_children_gap := false;
 		union kind: Layout_Kind = .Free {
-
 				// Grid
 				struct {
 						rows: int;
@@ -106,33 +105,6 @@ Layout :: struct {
 // 		return .{};
 // }
 
-compute_layout :: (parent: Layout, layout: *Layout) {
-		if parent.kind == .Free {
-				if layout.v_constraint == {
-						case .Top;
-						layout.y += parent.y;
-						case .Bottom;
-						layout.y += (parent.y + parent.height) - layout.height - 2 * layout.y;
-						case .TopAndBottom;
-						layout.height = parent.height - layout.offset_y - layout.y;
-						layout.y += parent.y;
-						case .Center;
-						layout.y += (parent.y + parent.height / 2.0) - layout.height / 2.0;
-				}
-
-				if layout.h_constraint == {
-						case .Left;
-						layout.x += parent.x;
-						case .Right;
-						layout.x += (parent.x + parent.width) - layout.width - 2 * layout.x;
-						case .LeftAndRight;
-						layout.x += parent.x;
-						layout.width = parent.width - layout.offset_x - layout.x;
-						case .Center;
-						layout.x += parent.x + parent.width / 2.0 - layout.width / 2.0;
-				}
-		}
-}
 
 limit_size :: (it: *Layout) {
 		if it.min_width >= 0 it.width = max(it.width, it.min_width);
@@ -143,7 +115,32 @@ limit_size :: (it: *Layout) {
 
 compute_layout :: (parent: Layout, children: .. *Layout) {
 		assert(parent.kind != .Grid, "Not implemented");
-		if parent.kind == .Free for children compute_layout(parent, it);
+		if parent.kind == .Free for children {
+				if it.v_constraint == {
+						case .Top;
+						it.y += parent.y;
+						case .Bottom;
+						it.y += (parent.y + parent.height) - it.height - 2 * it.y;
+						case .TopAndBottom;
+						it.height = parent.height - it.offset_y - it.y;
+						it.y += parent.y;
+						case .Center;
+						it.y += (parent.y + parent.height / 2.0) - it.height / 2.0;
+				}
+
+				if it.h_constraint == {
+						case .Left;
+						it.x += parent.x;
+						case .Right;
+						it.x += (parent.x + parent.width) - it.width - 2 * it.x;
+						case .LeftAndRight;
+						it.x += parent.x;
+						it.width = parent.width - it.offset_x - it.x;
+						case .Center;
+						it.x += parent.x + parent.width / 2.0 - it.width / 2.0;
+				}
+				return;
+		}
 
 		// Apply padding
 		parent_rect := parent.rect;
@@ -368,7 +365,16 @@ draw_ui :: () {
 		add_subwindow(*sub);
 
 		draw_popups();
+
+		something(
+				foo = "Bar"
+		);
 }
+
+
+something :: (code: Code) #expand {
+		print("Foo\n");
+} // @ImplicitCode
 
 #scope_file
 

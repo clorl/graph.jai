@@ -11,8 +11,6 @@ build :: () {
 				use_ansi_color = false;
 		}
     set_build_options(opts, w);
-		
-		add_build_file("main.jai", w);
 
 		#if OS == .LINUX {
 				paths := split(to_string(getenv("LD_LIBRARY_PATH")), ":");
@@ -20,6 +18,23 @@ build :: () {
 						compiler_add_library_search_directory(it);
 				}
 		}
+
+		compiler_begin_intercept(w);
+
+		add_build_file("main.jai", w);
+
+		while true {
+				message := compiler_wait_for_message();
+				print("%\n", message.*);
+				if message.kind == {
+						case .TYPECHECKED;
+						m := cast(*Message_Typechecked) message;
+						print("%\n", m.*);
+				}
+		}
+
+		compiler_end_intercept(w);
+
 }
 
 #run build();
