@@ -62,7 +62,9 @@ Layout :: struct {
 
 		h_sizing: Sizing_Mode = .Fixed;
 		v_sizing: Sizing_Mode = .Fixed;
-		
+
+		// Not used for .Fixed
+		padding_left, padding_right, padding_top, padding_bottom: float = 0;
 		union kind: Layout_Kind = .Free {
 
 				// Horizontal and Vertical
@@ -82,7 +84,7 @@ Layout :: struct {
 						auto_children_gap_h := false;
 						auto_children_gap_v := false;
 				}
-						padding_left, padding_right, padding_top, padding_bottom: float;
+
 		}
 }
 
@@ -136,28 +138,90 @@ limit_size :: (it: *Layout) {
 }
 
 compute_layout :: (parent: Layout, children: .. *Layout) {
+		assert(parent.kind != .Grid, "Not implemented");
 		if parent.kind == .Free for children compute_layout(parent, it);
 
-		_,remaining_rect := cut_top(parent.rect, parent.padding_top);
-		_,remaining_rect = cut_bottom(remaining_rect, parent.padding_bottom);
-		_,remaining_rect = cut_right(remaining_rect, parent.padding_right);
-		_,remaining_rect = cut_left(remaining_rect, parent.padding_left);
+		parent_rect := parent.rect;
+		 _,parent_rect = cut_top(parent_rect, parent.padding_top);
+		 _,parent_rect = cut_bottom(parent_rect, parent.padding_bottom);
+		 _,parent_rect = cut_right(parent_rect, parent.padding_right);
+		_,parent_rect = cut_left(parent_rect, parent.padding_left);
+		{
+				using parent;
+		}
 
+		// Compute children size
+		fill_children := 0;
+		cumul_size : float = 0;
 		for children {
-				it.x = remaining_rect.x;
-				it.y = remaining_rect.y;
+				limit_size(it);
+				if parent.kind == .Horizontal && it.h_sizing == .Fill
+						|| parent.kind == .Vertical && it.v_sizing == .Fill {
+								fill_children += 1;
+								continue;
+						}
+
+				if parent.kind == .Horizontal cumul_size += it.width;
+				if parent.kind == .Vertical cumul_size += it.height;
+		}
+
+		// Compute fill children size
+		cumul_size = max(cumul_size, 0);
+		remaining_size: float = (ifx parent.kind == .Horizontal parent_rect.w else parent_rect.h) - cumul_size;
+		remaining_size = max(remaining_size, 0);
+		fill_size: float = 0;
+		if fill_children > 0 && remaining_size > 0 {
+				fill_size = remaining_size / fill_children;
+		}
+
+		// Recalculate accounting for fill children with min/max width and height
+		for children {
+				if parent.kind == .Horizontal && it.h_sizing == .Fill {
+						if fill_size <= 0 break;
+						if it.max_width >= 0 && fill_size > it.max_width {
+								remaining_size -= it.max_width;
+								fill_children -= 1;
+						} else if it.min_width >= 0 && fill_size < it.min_width {
+								remaining_size -= it.min_width;
+								fill_children -= 1;
+						}
+				}
+				if parent.kind == .Vertical && it.v_sizing == .Fill {
+						if fill_size <= 0 break;
+						if it.max_height >= 0 && fill_size > it.max_height {
+								remaining_size -= it.max_height;
+								fill_children -= 1;
+						} else if it.min_height >= 0 && fill_size < it.min_height {
+								remaining_size -= it.min_height;
+								fill_children -= 1;
+						}
+				}
+		}
+		remaining_size = max(remaining_size, 0);
+		if fill_children > 0 && remaining_size > 0 {
+				fill_size = remaining_size / fill_children;
+		}
+
+
+		// Place children 
+		for children {
+				it.x = parent_rect.x;
+				it.y = parent_rect.y;
 
 				if parent.kind == .Horizontal {
-						if it.v_sizing == .Fill it.height = remaining_rect.h;
+						if it.h_sizing == .Fill it.width = fill_size;
+						if it.v_sizing == .Fill it.height = parent_rect.h;
 						limit_size(it);
 
-						_, remaining_rect = cut_left(remaining_rect, it.width);
+						_, parent_rect = cut_left(parent_rect, it.width);
 				}
 				
 				if parent.kind == .Vertical {
-						if it.h_sizing== .Fill it.width = remaining_rect.w;
+						if it.v_sizing == .Fill it.height = fill_size;
+						if it.h_sizing== .Fill it.width = parent_rect.w;
 						limit_size(it);
-						_, remaining_rect = cut_top(remaining_rect, it.height);
+						
+						_, parent_rect = cut_top(parent_rect, it.height);
 				}
 		}
 }
@@ -175,8 +239,8 @@ my_ui_init :: () {
 		using sub;
 		subwindow_layout = Layout.{
 				rect = get_rect(20, 20, 200, 100),
-				kind = .Vertical,
-				padding_top = 24
+				kind = .Horizontal,
+				padding_top = 24,
 		};
 		compute_layout(root_layout, *subwindow_layout);
 
@@ -196,6 +260,7 @@ draw_subwindow :: (state: *Subwindow_State, r: Rect, data: *void) {
 				width = 128,
 				height = 32,
 				min_height = 64,
+				h_sizing = .Fill
 		};
 		btn_layout2 : Layout = .{
 				x = 32,
@@ -211,6 +276,7 @@ draw_subwindow :: (state: *Subwindow_State, r: Rect, data: *void) {
 				y= 32,
 				width = 128,
 				height = 32,
+				h_sizing = .Fill,
 		};
 		compute_layout(subwindow_layout, *btn_layout, *btn_layout2, *btn_layout3);
 		button(btn_layout.rect, "One");
