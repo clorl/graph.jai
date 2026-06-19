@@ -35,21 +35,13 @@ Layout_Kind :: enum {
 		Free;
 		Horizontal;
 		Vertical;
-		Grid;
+		Grid; //@Todo
 }
 
 Sizing_Mode :: enum {
 		Fixed;
-		HugContents;
+		HugContents; //@Todo
 		Fill;
-}
-
-Size_Limits :: enum_flags {
-		None;
-		MinWidth;
-		MinHeight;
-		MaxWidth;
-		MaxHeight;
 }
 
 Layout :: struct {
@@ -62,14 +54,14 @@ Layout :: struct {
 		#overlay (min_width) min_size: Vector2;
 		#overlay (max_width) max_size: Vector2;
 
-		// apply min/max width/height or not
-		size_limits: Size_Limits = .None;
-
 		clip_overflow_contents := false;
 		//@Todo aspect ratio
 
 		v_constraint: Layout_Constraint = .Top;
 		h_constraint: Layout_Constraint = .Left;
+
+		h_sizing: Sizing_Mode = .Fixed;
+		v_sizing: Sizing_Mode = .Fixed;
 		
 		union kind: Layout_Kind = .Free {
 
@@ -106,8 +98,7 @@ Layout :: struct {
 // 		return .{};
 // }
 
-// Returns is_visible
-compute_layout :: (layout: *Layout, parent: Layout, parent_available_space: Rect) -> bool {
+compute_layout :: (parent: Layout, layout: *Layout) {
 		//if layout.rect.w <= 0 || layout.rect.h <= 0 return false, .{};
 		//if parent_layout.clip_overflow_contents && !point_within(result.position, parent.rect) return false, .{};
 		if parent.kind == .Free {
@@ -135,7 +126,40 @@ compute_layout :: (layout: *Layout, parent: Layout, parent_available_space: Rect
 						layout.x += parent.x + parent.width / 2.0 - layout.width / 2.0;
 				}
 		}
-		return true;
+}
+
+limit_size :: (it: *Layout) {
+		if it.min_width >= 0 it.width = max(it.width, it.min_width);
+		if it.max_width >= 0 it.width = min(it.width, it.max_width);
+		if it.min_height >= 0 it.height = max(it.height, it.min_height);
+		if it.max_height >= 0 it.height = min(it.height, it.max_height);
+}
+
+compute_layout :: (parent: Layout, children: .. *Layout) {
+		if parent.kind == .Free for children compute_layout(parent, it);
+
+		_,remaining_rect := cut_top(parent.rect, parent.padding_top);
+		_,remaining_rect = cut_bottom(remaining_rect, parent.padding_bottom);
+		_,remaining_rect = cut_right(remaining_rect, parent.padding_right);
+		_,remaining_rect = cut_left(remaining_rect, parent.padding_left);
+
+		for children {
+				it.x = remaining_rect.x;
+				it.y = remaining_rect.y;
+
+				if parent.kind == .Horizontal {
+						if it.v_sizing == .Fill it.height = remaining_rect.h;
+						limit_size(it);
+
+						_, remaining_rect = cut_left(remaining_rect, it.width);
+				}
+				
+				if parent.kind == .Vertical {
+						if it.h_sizing== .Fill it.width = remaining_rect.w;
+						limit_size(it);
+						_, remaining_rect = cut_top(remaining_rect, it.height);
+				}
+		}
 }
 
 subwindow_layout := Layout.{};
@@ -149,8 +173,12 @@ my_ui_init :: () {
 		};
 
 		using sub;
-		subwindow_layout = Layout.{ rect = get_rect(20, 20, 200, 100) };
-		compute_layout(*subwindow_layout, root_layout, root_layout.rect);
+		subwindow_layout = Layout.{
+				rect = get_rect(20, 20, 200, 100),
+				kind = .Vertical,
+				padding_top = 24
+		};
+		compute_layout(root_layout, *subwindow_layout);
 
 		rect = subwindow_layout.rect;
 		draw = draw_subwindow;
@@ -162,25 +190,32 @@ my_ui_init :: () {
 }
 
 draw_subwindow :: (state: *Subwindow_State, r: Rect, data: *void) {
-
-		id := 0;
-		for h: 1..4 for v: 1..4 {
-				if h == 3 || v == 3 continue;
-				id += 1;
-				hstrings := string.["", "Left", "Right", "Left+Right", "Center"];
-				vstrings := string.["", "Top", "Bottom", "Top+Bottom", "Center"];
-
-				btn_layout : Layout = {
-						x = 32,
-						y= 32,
-						width = 128,
-						height = 32,
-						h_constraint = cast(Layout_Constraint) h,
-						v_constraint = cast(Layout_Constraint) v,
-				};
-				compute_layout(*btn_layout, subwindow_layout, subwindow_layout.rect);
-				button(btn_layout.rect, tprint("% %", hstrings[h], vstrings[v]), identifier=id);
-		}
+		btn_layout : Layout = .{
+				x = 32,
+				y= 32,
+				width = 128,
+				height = 32,
+				min_height = 64,
+		};
+		btn_layout2 : Layout = .{
+				x = 32,
+				y= 32,
+				width = 128,
+				height = 32,
+				h_sizing = .Fill,
+				min_width = 100,
+				max_width = 300,
+		};
+		btn_layout3: Layout = .{
+				x = 32,
+				y= 32,
+				width = 128,
+				height = 32,
+		};
+		compute_layout(subwindow_layout, *btn_layout, *btn_layout2, *btn_layout3);
+		button(btn_layout.rect, "One");
+		button(btn_layout2.rect, "Two");
+		button(btn_layout3.rect, "Three");
 }
 
 draw_ui :: () {
@@ -196,8 +231,8 @@ draw_ui :: () {
 				rect = get_rect(0, 0, w, h)
 		};
 
-		subwindow_layout = Layout.{ rect = sub.rect };
-		compute_layout(*subwindow_layout, root_layout, root_layout.rect);
+		subwindow_layout.rect = sub.rect;
+		compute_layout(root_layout, *subwindow_layout);
 		add_subwindow(*sub);
 
 		draw_popups();
