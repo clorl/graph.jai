@@ -54,13 +54,14 @@ Layout :: struct {
 		#overlay (x) position: Vector2;
 		#overlay (width) size: Vector2;
 		#overlay (x) rect: Rect;
+		#overlay (width) offset_x: float;
+		#overlay (height) offset_y: float;
 
 		min_width, min_height, max_width, max_height: float = -1;
 		#overlay (min_width) min_size: Vector2;
 		#overlay (max_width) max_size: Vector2;
 
-		clip_overflow_contents := false;
-		//@Todo aspect ratio
+		clip_overflow_content := true; //@Todo
 
 		v_constraint: Layout_Constraint = .Top;
 		h_constraint: Layout_Constraint = .Left;
@@ -106,8 +107,6 @@ Layout :: struct {
 // }
 
 compute_layout :: (parent: Layout, layout: *Layout) {
-		//if layout.rect.w <= 0 || layout.rect.h <= 0 return false, .{};
-		//if parent_layout.clip_overflow_contents && !point_within(result.position, parent.rect) return false, .{};
 		if parent.kind == .Free {
 				if layout.v_constraint == {
 						case .Top;
@@ -115,8 +114,8 @@ compute_layout :: (parent: Layout, layout: *Layout) {
 						case .Bottom;
 						layout.y += (parent.y + parent.height) - layout.height - 2 * layout.y;
 						case .TopAndBottom;
+						layout.height = parent.height - layout.offset_y - layout.y;
 						layout.y += parent.y;
-						layout.height = parent.height - layout.height;
 						case .Center;
 						layout.y += (parent.y + parent.height / 2.0) - layout.height / 2.0;
 				}
@@ -128,7 +127,7 @@ compute_layout :: (parent: Layout, layout: *Layout) {
 						layout.x += (parent.x + parent.width) - layout.width - 2 * layout.x;
 						case .LeftAndRight;
 						layout.x += parent.x;
-						layout.width = parent.width - layout.width;
+						layout.width = parent.width - layout.offset_x - layout.x;
 						case .Center;
 						layout.x += parent.x + parent.width / 2.0 - layout.width / 2.0;
 				}
@@ -234,42 +233,44 @@ compute_layout :: (parent: Layout, children: .. *Layout) {
 				}
 		}
 
+
+		available_space := parent_rect;
 		// Place children 
 		for children {
-				it.x = parent_rect.x;
-				it.y = parent_rect.y;
+				it.x = available_space.x;
+				it.y = available_space.y;
 				gap : float = 0;
 				
 				if it_index > 0 gap = gap_size;
 
 				if parent.kind == .Horizontal {
 						if it.h_sizing == .Fill it.width = fill_size;
-						if it.v_sizing == .Fill it.height = parent_rect.h;
+						if it.v_sizing == .Fill it.height = available_space.h;
 						limit_size(it);
 
 						if parent.v_children_alignment == {
-								case .Top; it.y = parent_rect.y;
-								case .Bottom; it.y = parent_rect.y + parent_rect.h - it.height;
+								case .Top; it.y = available_space.y;
+								case .Bottom; it.y = available_space.y + available_space.h - it.height;
 								case .Center; it.y = (parent.y + parent.height / 2.0) - it.height / 2.0;
 						}
 
 						it.x += gap;
-						_, parent_rect = cut_left(parent_rect, it.width + gap);
+						_, available_space = cut_left(available_space, it.width + gap);
 				}
 				
 				if parent.kind == .Vertical {
 						if it.v_sizing == .Fill it.height = fill_size;
-						if it.h_sizing== .Fill it.width = parent_rect.w;
+						if it.h_sizing== .Fill it.width = available_space.w;
 						limit_size(it);
-						it.y += gap;
 
 						if parent.h_children_alignment == {
-								case .Left; it.x = parent_rect.x;
-								case .Right; it.x = parent_rect.x + parent_rect.w - it.width;
+								case .Left; it.x = available_space.x;
+								case .Right; it.x = available_space.x + available_space.w - it.width;
 								case .Center; it.x = (parent.x + parent.width / 2.0) - it.width / 2.0;
 						}
 						
-						_, parent_rect = cut_top(parent_rect, it.height + gap);
+						it.y += gap;
+						available_space = cut_top(available_space, it.height + gap);
 				}
 		}
 }
@@ -287,10 +288,9 @@ my_ui_init :: () {
 		using sub;
 		subwindow_layout = Layout.{
 				rect = get_rect(20, 20, 200, 100),
-				kind = .Horizontal,
+				kind = .Free,
 				padding_top = 24,
 				v_children_alignment = .Center,
-				auto_children_gap = true,
 		};
 		compute_layout(root_layout, *subwindow_layout);
 
@@ -303,6 +303,24 @@ my_ui_init :: () {
 }
 
 draw_subwindow :: (state: *Subwindow_State, r: Rect, data: *void) {
+		container_layout : Layout = .{
+				kind = .Horizontal,
+				v_constraint = .Fill,
+				h_constraint = .Fill,
+				x = 50,
+				y = 50,
+				width = 100,
+				offset_y = 50,
+		};
+
+		compute_layout(subwindow_layout, *container_layout);
+		{
+				using container_layout;
+				Simp.immediate_quad(x, y, x + width, y + height, Vector4.{1,1,1,1});
+				Simp.immediate_flush();
+		}
+		
+
 		btn_layout : Layout = .{
 				x = 32,
 				y= 32,
@@ -324,10 +342,12 @@ draw_subwindow :: (state: *Subwindow_State, r: Rect, data: *void) {
 				width = 128,
 				height = 32,
 		};
-		compute_layout(subwindow_layout, *btn_layout, *btn_layout2, *btn_layout3);
+		compute_layout(container_layout, *btn_layout, *btn_layout2, *btn_layout3);
+		push_scissor(container_layout.rect);
 		button(btn_layout.rect, "One");
 		button(btn_layout2.rect, "Two");
 		button(btn_layout3.rect, "Three");
+		pop_scissor();
 }
 
 draw_ui :: () {
@@ -340,7 +360,7 @@ draw_ui :: () {
 		h : float = xx Graphics_Settings.win_height;
 
 		root_layout := Layout.{
-				rect = get_rect(0, 0, w, h)
+				rect = get_rect(0, 0, w, h),
 		};
 
 		subwindow_layout.rect = sub.rect;
