@@ -70,15 +70,14 @@ Layout :: struct {
 
 		// Not used for .Fixed
 		padding_left, padding_right, padding_top, padding_bottom: float = 0;
-		union kind: Layout_Kind = .Free {
 
-				// Horizontal and Vertical
-				struct {
-						h_children_alignment: Alignment = .Left;
-						v_children_alignment: Alignment = .Top;
-						children_gap: float = 0;
-						auto_children_gap := false;
-				}
+		// Used for Horizontal and Vertical layout
+		// @Cleanup having everything stored for all layout types when it's not used is bad i think
+		h_children_alignment: Alignment = .Left;
+		v_children_alignment: Alignment = .Top;
+		children_gap: float = 0;
+		auto_children_gap := false;
+		union kind: Layout_Kind = .Free {
 
 				// Grid
 				struct {
@@ -154,7 +153,7 @@ compute_layout :: (parent: Layout, children: .. *Layout) {
 		 _,parent_rect = cut_right(parent_rect, parent.padding_right);
 		_,parent_rect = cut_left(parent_rect, parent.padding_left);
 
-		// Compute children size
+		// Compute children total size
 		fill_children := 0;
 		cumul_size : float = 0;
 		for children {
@@ -169,7 +168,14 @@ compute_layout :: (parent: Layout, children: .. *Layout) {
 				if parent.kind == .Vertical cumul_size += it.height;
 		}
 
-		// Compute fill children size
+		// Compute gaps size
+		gap_size :float = 0;
+		if parent.children_gap > 0 && !parent.auto_children_gap {
+				cumul_size += parent.children_gap * (children.count - 1);
+				gap_size = parent.children_gap;
+		}
+
+	// Compute fill children size
 		cumul_size = max(cumul_size, 0);
 		remaining_size: float = (ifx parent.kind == .Horizontal parent_rect.w else parent_rect.h) - cumul_size;
 		remaining_size = max(remaining_size, 0);
@@ -229,6 +235,9 @@ compute_layout :: (parent: Layout, children: .. *Layout) {
 		for children {
 				it.x = parent_rect.x;
 				it.y = parent_rect.y;
+				gap : float = 0;
+				
+				if it_index > 0 gap = gap_size;
 
 				if parent.kind == .Horizontal {
 						if it.h_sizing == .Fill it.width = fill_size;
@@ -241,14 +250,15 @@ compute_layout :: (parent: Layout, children: .. *Layout) {
 								case .Center; it.y = (parent.y + parent.height / 2.0) - it.height / 2.0;
 						}
 
-						_, parent_rect = cut_left(parent_rect, it.width);
+						it.x += gap;
+						_, parent_rect = cut_left(parent_rect, it.width + gap);
 				}
 				
 				if parent.kind == .Vertical {
 						if it.v_sizing == .Fill it.height = fill_size;
 						if it.h_sizing== .Fill it.width = parent_rect.w;
 						limit_size(it);
-
+						it.y += gap;
 
 						if parent.h_children_alignment == {
 								case .Left; it.x = parent_rect.x;
@@ -256,7 +266,7 @@ compute_layout :: (parent: Layout, children: .. *Layout) {
 								case .Center; it.x = (parent.x + parent.width / 2.0) - it.width / 2.0;
 						}
 						
-						_, parent_rect = cut_top(parent_rect, it.height);
+						_, parent_rect = cut_top(parent_rect, it.height + gap);
 				}
 		}
 }
@@ -277,7 +287,7 @@ my_ui_init :: () {
 				kind = .Horizontal,
 				padding_top = 24,
 				v_children_alignment = .Center,
-				h_children_alignment = .Right
+				children_gap = 30
 		};
 		compute_layout(root_layout, *subwindow_layout);
 
@@ -287,7 +297,6 @@ my_ui_init :: () {
 		open = true;
 
 		l := Layout.{};
-		print("%\n", l.kind);
 }
 
 draw_subwindow :: (state: *Subwindow_State, r: Rect, data: *void) {
@@ -311,6 +320,7 @@ draw_subwindow :: (state: *Subwindow_State, r: Rect, data: *void) {
 				y= 32,
 				width = 128,
 				height = 32,
+				h_sizing = .Fill,
 		};
 		compute_layout(subwindow_layout, *btn_layout, *btn_layout2, *btn_layout3);
 		button(btn_layout.rect, "One");
