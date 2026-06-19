@@ -4,12 +4,16 @@ sub: Subwindow_Info;
 
 #scope_export
 
-Alignment :: enum_flags {
+Alignment :: enum {
+		Begin	:: 1;
 		Top		:: 1;
+		Left	:: 1;
+
+		End		:: 2;
+		Bottom	:: 2;
 		Right	:: 2;
-		Bottom	:: 4;
-		Left	:: 8;
-		Center	:: 16;
+		
+		Center	:: 3;
 }
 
 Layout_Constraint :: enum {
@@ -26,9 +30,10 @@ Layout_Constraint :: enum {
 		BeginAndEnd		:: 3;
 		LeftAndRight	:: BeginAndEnd;
 		TopAndBottom	:: BeginAndEnd;
+		Fill				:: BeginAndEnd;
 		
 		Center				:: 4;
-		Scale				:: 5;
+		Scale				:: 5; // Unused
 }
 
 Layout_Kind :: enum {
@@ -69,7 +74,8 @@ Layout :: struct {
 
 				// Horizontal and Vertical
 				struct {
-						children_alignment: Alignment = .Top | .Left;
+						h_children_alignment: Alignment = .Left;
+						v_children_alignment: Alignment = .Top;
 						children_gap: float = 0;
 						auto_children_gap := false;
 				}
@@ -141,14 +147,12 @@ compute_layout :: (parent: Layout, children: .. *Layout) {
 		assert(parent.kind != .Grid, "Not implemented");
 		if parent.kind == .Free for children compute_layout(parent, it);
 
+		// Apply padding
 		parent_rect := parent.rect;
 		 _,parent_rect = cut_top(parent_rect, parent.padding_top);
 		 _,parent_rect = cut_bottom(parent_rect, parent.padding_bottom);
 		 _,parent_rect = cut_right(parent_rect, parent.padding_right);
 		_,parent_rect = cut_left(parent_rect, parent.padding_left);
-		{
-				using parent;
-		}
 
 		// Compute children size
 		fill_children := 0;
@@ -200,8 +204,26 @@ compute_layout :: (parent: Layout, children: .. *Layout) {
 		remaining_size = max(remaining_size, 0);
 		if fill_children > 0 && remaining_size > 0 {
 				fill_size = remaining_size / fill_children;
+		} else {
+				fill_size = 0;
 		}
 
+		empty_space := remaining_size - fill_size * fill_children;
+
+		// Calculate offset for children_alignment
+		if parent.kind == {
+				case .Horizontal;
+				if empty_space > 0 if parent.h_children_alignment == {
+						case .Right; parent_rect.x += empty_space;
+						case .Center; parent_rect.x += empty_space / 2.0;
+				}
+
+				case .Vertical;
+				if empty_space > 0 if parent.v_children_alignment == {
+						case .Bottom; parent_rect.y += empty_space;
+						case .Center; parent_rect.y += empty_space / 2.0;
+				}
+		}
 
 		// Place children 
 		for children {
@@ -213,6 +235,12 @@ compute_layout :: (parent: Layout, children: .. *Layout) {
 						if it.v_sizing == .Fill it.height = parent_rect.h;
 						limit_size(it);
 
+						if parent.v_children_alignment == {
+								case .Top; it.y = parent_rect.y;
+								case .Bottom; it.y = parent_rect.y + parent_rect.h - it.height;
+								case .Center; it.y = (parent.y + parent.height / 2.0) - it.height / 2.0;
+						}
+
 						_, parent_rect = cut_left(parent_rect, it.width);
 				}
 				
@@ -220,6 +248,13 @@ compute_layout :: (parent: Layout, children: .. *Layout) {
 						if it.v_sizing == .Fill it.height = fill_size;
 						if it.h_sizing== .Fill it.width = parent_rect.w;
 						limit_size(it);
+
+
+						if parent.h_children_alignment == {
+								case .Left; it.x = parent_rect.x;
+								case .Right; it.x = parent_rect.x + parent_rect.w - it.width;
+								case .Center; it.x = (parent.x + parent.width / 2.0) - it.width / 2.0;
+						}
 						
 						_, parent_rect = cut_top(parent_rect, it.height);
 				}
@@ -241,6 +276,8 @@ my_ui_init :: () {
 				rect = get_rect(20, 20, 200, 100),
 				kind = .Horizontal,
 				padding_top = 24,
+				v_children_alignment = .Center,
+				h_children_alignment = .Right
 		};
 		compute_layout(root_layout, *subwindow_layout);
 
@@ -260,14 +297,12 @@ draw_subwindow :: (state: *Subwindow_State, r: Rect, data: *void) {
 				width = 128,
 				height = 32,
 				min_height = 64,
-				h_sizing = .Fill
 		};
 		btn_layout2 : Layout = .{
 				x = 32,
 				y= 32,
 				width = 128,
 				height = 32,
-				h_sizing = .Fill,
 				min_width = 100,
 				max_width = 300,
 		};
@@ -276,7 +311,6 @@ draw_subwindow :: (state: *Subwindow_State, r: Rect, data: *void) {
 				y= 32,
 				width = 128,
 				height = 32,
-				h_sizing = .Fill,
 		};
 		compute_layout(subwindow_layout, *btn_layout, *btn_layout2, *btn_layout3);
 		button(btn_layout.rect, "One");
