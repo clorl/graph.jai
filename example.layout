@@ -1,0 +1,28 @@
+[1] 			# Version number; do not delete!
+
+# This is a comment
+
+root {
+h_sizing fill
+v_sizing fixed
+max_height 30
+
+  foo {
+    h_constraint fill
+    v_constraint fill
+    kind horizontal
+    children_gaps 12
+    h_children_alignment center
+    v_children_alignment center
+
+    bar {
+      h_sizing fill
+      v_sizing fill
+    }    
+
+    baz {
+      min_width 30
+    }
+  }
+
+}

@@ -14,6 +14,14 @@ Alignment :: enum {
 		Right	:: 2;
 		
 		Center	:: 3;
+
+		BEGIN :: Begin;
+		TOP :: Top;
+		LEFT :: Left;
+		END :: End;
+		BOTTOM :: Bottom;
+		RIGHT :: Right;
+		CENTER :: Center;
 }
 
 Layout_Constraint :: enum {
@@ -34,6 +42,24 @@ Layout_Constraint :: enum {
 		
 		Center				:: 4;
 		Scale				:: 5; // Unused
+
+		NONE					:: None;
+
+		BEGIN					:: Begin;
+		LEFT					:: Left;
+		TOP						:: Top;
+
+		END						:: End;
+		RIGHT					:: Right;
+		BOTTOM				:: Bottom;
+
+		BEGINANDEND		:: BeginAndEnd;
+		LEFTANDRIGHT	:: LeftAndRight;
+		TOPANDBOTTOM	:: TopAndBottom;
+		FILL					:: Fill;
+		
+		CENTER				:: Center;
+		SCALE					:: Scale;
 }
 
 Layout_Kind :: enum {
@@ -41,12 +67,20 @@ Layout_Kind :: enum {
 		Horizontal;
 		Vertical;
 		Grid; //@Todo
+
+		FREE :: Free;
+		HORIZONTAL :: Horizontal;
+		VERTICAL :: Vertical;
+		GRID :: Grid;
 }
 
 Sizing_Mode :: enum {
 		Fixed;
 		// HugContents; To achieve this, first compute the child's layout and set sizing to fixed
 		Fill;
+		Fixed :: FIXED;
+		Fill :: FILL;
+		
 }
 
 Layout :: struct {
@@ -365,19 +399,115 @@ draw_ui :: () {
 		add_subwindow(*sub);
 
 		draw_popups();
-
-		something(
-				foo = "Bar"
-		);
 }
 
+Stored_Layout :: struct {
+		id: string;
+		layout: Layout;
+		children: [..] Stored_Layout;
+}
 
-something :: (code: Code) #expand {
-		print("Foo\n");
-} // @ImplicitCode
+wip :: () {
+		ok, res := load_layout_file("example.layout");
+}
+
+load_layout_file :: (filename: string, path: string=".") -> bool, Stored_Layout {
+		handler: Text_File_Handler;
+		defer deinit(*handler);
+
+		file_found, exe_path, exe_name := split_from_right(get_path_of_running_executable(), #char "/");
+		if !file_found {
+				log_error("Unable to find executable path\n");
+				return false, .{};
+		}
+
+		complete_path := tprint("%/%/%", exe_path, path, filename);
+		start_file(*handler, filename, filename, false);
+		if handler.failed return false, .{};
+
+		result: Stored_Layout;
+		//ti := type_info(Stored_Layout).*;
+		// for ti.members {
+		// 		print("% %\n", it.name, it.type.*);
+		// }
+		// print("%\n", ti);
+		//exit(0);
+
+		line, found := consume_next_line(*handler);
+		if found {
+		id, value := break_by_spaces(line);
+
+				if !id {
+						error(handler, tprint("Expected a space after identifier"));
+				}
+
+				if value == "{" {
+						success, res := parse_layout_object(handler, id);
+				}
+		}
+
+		return false, .{};
+}
+
+parse_layout_object :: (handler: Text_File_Handler, id: string, depth := 0) -> bool, Stored_Layout {
+		object_finished := false;
+		layout: Stored_Layout;
+		children: [..] Stored_Layout;
+		data: Table(string, string);
+		
+		while true {
+				line, found := consume_next_line(*handler);
+				if !found break;
+
+				if trim(line) == "}" {
+						object_finished = true;
+						break;
+				}
+
+				id, value := break_by_spaces(line);
+				if !id {
+						error(handler, "Expected space after id");
+						break;
+				}
+
+				if value == "{" {
+						success, res := parse_layout_object(handler, id, depth+1);
+						if success array_add(*children, res);
+				} else {
+						table_set(*data, id, value);
+				}
+		}
+
+		info := type_info(Layout);
+		for info.members {
+				success, str_value := table_find(*data, it.name);
+				field := get_field(info, it.name);
+				if !success || !field continue;
+				
+				if field.type.type == {
+						case UNTYPED_ENUM; #through;
+						case .ENUM; {
+								enum_info := cast(*Type_Info_Enum)field.type;
+								if !enum_info continue;
+								upper_name := to_upper_copy(it.name);
+								enum_value, ok := enum_name_to_value(type_of())
+
+								print("% is an enum, value is %\n", it.name);
+						}
+				}
+		}
+
+		layout.children = children;
+
+		return object_finished, layout;
+}
 
 #scope_file
 
+#import "Unicode";
+#import "System";
+#import "String";
+#import "Text_File_Handler";
 #import "Basic";
 #import "Math";
 Simp :: #import "Simp";

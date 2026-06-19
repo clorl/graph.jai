@@ -23,15 +23,15 @@ build :: () {
 
 		add_build_file("main.jai", w);
 
-		while true {
-				message := compiler_wait_for_message();
-				print("%\n", message.*);
-				if message.kind == {
-						case .TYPECHECKED;
-						m := cast(*Message_Typechecked) message;
-						print("%\n", m.*);
-				}
-		}
+		// while true {
+		// 		message := compiler_wait_for_message();
+		// 		print("%\n", message.*);
+		// 		if message.kind == {
+		// 				case .TYPECHECKED;
+		// 				m := cast(*Message_Typechecked) message;
+		// 				print("%\n", m.*);
+		// 		}
+		// }
 
 		compiler_end_intercept(w);
 
