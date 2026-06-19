@@ -371,20 +371,10 @@ draw_ui :: () {
 Stored_Layout :: struct {
 		id: string;
 		layout: Layout;
-		children: [..] Stored_Layout;
+		children: [..] string;
 }
 
-wip :: () {
-		ok, res := load_layout_file("example.layout");
-		if ok {
-				print("%\n\n", res);
-				for res.children {
-						print("%\n\n", it);
-				}
-		}
-}
-
-load_layout_file :: (filename: string, path: string=".") -> bool, Stored_Layout {
+load_layout_file :: (filename: string, path: string=".") -> bool, Table(string, Stored_Layout) {
 		handler: Text_File_Handler;
 		defer deinit(*handler);
 
@@ -409,42 +399,58 @@ load_layout_file :: (filename: string, path: string=".") -> bool, Stored_Layout 
 				}
 
 				if value == "{" {
-						success, res := parse_layout_object(handler, id);
-						return true, res;
+						success, res := parse_layout_object(*handler, id);
+						if success return true, res;
 				}
 		}
 
 		return false, .{};
 }
 
-parse_layout_object :: (handler: Text_File_Handler, id: string, depth := 0) -> bool, Stored_Layout {
+wip :: () {
+		success, table := load_layout_file("example.layout");
+		if !success {
+				log_error("oop");
+				return;
+		}
+		ok, root := table_find(*table, "root");
+		if !ok return;
+		for table {
+				print("% > %\n", it_index, it.children);
+		}
+}
+
+parse_layout_object :: (handler: *Text_File_Handler, id: string, depth := 0) -> bool, Table(string, Stored_Layout) {
 		object_finished := false;
+		result: Table(string, Stored_Layout);
 		layout: Stored_Layout;
-		children: [..] Stored_Layout;
 		data: Table(string, string);
 
 		layout.id = id;
-		
-		while true {
-				line, found := consume_next_line(*handler);
-				if !found break;
 
+		while true {
+				line, found := consume_next_line(handler);
+				if !found break;
+				
 				if trim(line) == "}" {
 						object_finished = true;
 						break;
 				}
 
-				id, value := break_by_spaces(line);
-				if !id {
+				child_id, value := break_by_spaces(line);
+				if !child_id {
 						error(handler, "Expected space after id");
 						break;
 				}
 
 				if value == "{" {
-						success, res := parse_layout_object(handler, id, depth+1);
-						if success array_add(*children, res);
+						success, res := parse_layout_object(handler, child_id, depth+1);
+						if success for res {
+								array_add(*layout.children, it_index);
+								table_set(*result, it_index, it);
+						}
 				} else {
-						table_set(*data, id, value);
+						table_set(*data, child_id, value);
 				}
 		}
 
@@ -456,9 +462,9 @@ parse_layout_object :: (handler: Text_File_Handler, id: string, depth := 0) -> b
 				if !success log_error("Fail");
 		}
 
-		layout.children = children;
+		table_set(*result, id, layout);
 
-		return object_finished, layout;
+		return object_finished, result;
 }
 
 assign_field_from_string :: (s: *$T, field_name: string, value: string) -> bool {
