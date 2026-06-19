@@ -407,19 +407,6 @@ load_layout_file :: (filename: string, path: string=".") -> bool, Table(string, 
 		return false, .{};
 }
 
-wip :: () {
-		success, table := load_layout_file("example.layout");
-		if !success {
-				log_error("oop");
-				return;
-		}
-		ok, root := table_find(*table, "root");
-		if !ok return;
-		for table {
-				print("% > %\n", it_index, it.children);
-		}
-}
-
 parse_layout_object :: (handler: *Text_File_Handler, id: string, depth := 0) -> bool, Table(string, Stored_Layout) {
 		object_finished := false;
 		result: Table(string, Stored_Layout);
@@ -533,6 +520,55 @@ assign_field_from_string :: (s: *$T, field_name: string, value: string) -> bool 
 		return true;
 }
 
+layouts_cache: Table(string, Table(string, Stored_Layout));
+layout :: (file_path: string, code: Code) #expand {
+		if !table_contains(*layouts_cache, file_path) {
+				success, res := load_layout_file(file_path);
+				if !success {
+						log_error(tprint("Couldn't load layout %",file_path));
+						return;
+				} else {
+						table_set(*layouts_cache, file_path, res);
+				}
+		}
+
+		success, layouts := table_find(*layouts_cache, file_path);
+		if !success return;
+
+		#insert #run -> string {
+				result: Code;
+        root, expressions := compiler_get_nodes(code);
+				sb: String_Builder;
+
+				for expressions {
+						if it.kind != .PROCEDURE_CALL continue;
+						proc := cast(*Code_Procedure_Call) it;
+						for proc.arguments_unsorted {
+								if it.expression.kind != .IDENT continue;
+								ident := cast(*Code_Ident) it.expression;
+								if !begins_with(ident.name, "id_") continue;
+								id := ident.name;
+								id.data += 3; id.count -= 3;
+
+								to_insert :: #string END
+								_, %1 := table_find(*layouts, "%2");
+								END
+
+								print("HELLO ??????\n");
+								print(to_insert, "A", "B");
+
+								print(*sb, to_insert, ident.name, id);
+						}
+				}
+
+				//print_expression(*sb, root);
+
+				return builder_to_string(*sb);
+		};
+}
+
+
+
 #scope_file
 
 #import "Unicode";
@@ -547,3 +583,5 @@ Input :: #import "Input";
 #import "Hash_Table";
 #import "Random";
 #import "Reflection";
+#import "Compiler";
+#import "Program_Print";
