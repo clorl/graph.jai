@@ -3,6 +3,10 @@
 # This is a comment
 
 root {
+x 100
+y 200
+v_constraint topandbottom
+h_constraint center
 h_sizing fill
 v_sizing fixed
 max_height 30

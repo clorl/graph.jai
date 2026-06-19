@@ -4,7 +4,7 @@ sub: Subwindow_Info;
 
 #scope_export
 
-Alignment :: enum {
+Alignment :: enum u8 {
 		Begin	:: 1;
 		Top		:: 1;
 		Left	:: 1;
@@ -14,17 +14,9 @@ Alignment :: enum {
 		Right	:: 2;
 		
 		Center	:: 3;
-
-		BEGIN :: Begin;
-		TOP :: Top;
-		LEFT :: Left;
-		END :: End;
-		BOTTOM :: Bottom;
-		RIGHT :: Right;
-		CENTER :: Center;
 }
 
-Layout_Constraint :: enum {
+Layout_Constraint :: enum u8 {
 		None				:: 0;
 
 		Begin				:: 1;
@@ -42,44 +34,19 @@ Layout_Constraint :: enum {
 		
 		Center				:: 4;
 		Scale				:: 5; // Unused
-
-		NONE					:: None;
-
-		BEGIN					:: Begin;
-		LEFT					:: Left;
-		TOP						:: Top;
-
-		END						:: End;
-		RIGHT					:: Right;
-		BOTTOM				:: Bottom;
-
-		BEGINANDEND		:: BeginAndEnd;
-		LEFTANDRIGHT	:: LeftAndRight;
-		TOPANDBOTTOM	:: TopAndBottom;
-		FILL					:: Fill;
-		
-		CENTER				:: Center;
-		SCALE					:: Scale;
 }
 
-Layout_Kind :: enum {
+Layout_Kind :: enum u8 {
 		Free;
 		Horizontal;
 		Vertical;
 		Grid; //@Todo
-
-		FREE :: Free;
-		HORIZONTAL :: Horizontal;
-		VERTICAL :: Vertical;
-		GRID :: Grid;
 }
 
-Sizing_Mode :: enum {
+Sizing_Mode :: enum u8 {
 		Fixed;
 		// HugContents; To achieve this, first compute the child's layout and set sizing to fixed
 		Fill;
-		Fixed :: FIXED;
-		Fill :: FILL;
 		
 }
 
@@ -409,6 +376,12 @@ Stored_Layout :: struct {
 
 wip :: () {
 		ok, res := load_layout_file("example.layout");
+		if ok {
+				print("%\n\n", res);
+				for res.children {
+						print("%\n\n", it);
+				}
+		}
 }
 
 load_layout_file :: (filename: string, path: string=".") -> bool, Stored_Layout {
@@ -426,12 +399,6 @@ load_layout_file :: (filename: string, path: string=".") -> bool, Stored_Layout 
 		if handler.failed return false, .{};
 
 		result: Stored_Layout;
-		//ti := type_info(Stored_Layout).*;
-		// for ti.members {
-		// 		print("% %\n", it.name, it.type.*);
-		// }
-		// print("%\n", ti);
-		//exit(0);
 
 		line, found := consume_next_line(*handler);
 		if found {
@@ -443,6 +410,7 @@ load_layout_file :: (filename: string, path: string=".") -> bool, Stored_Layout 
 
 				if value == "{" {
 						success, res := parse_layout_object(handler, id);
+						return true, res;
 				}
 		}
 
@@ -454,6 +422,8 @@ parse_layout_object :: (handler: Text_File_Handler, id: string, depth := 0) -> b
 		layout: Stored_Layout;
 		children: [..] Stored_Layout;
 		data: Table(string, string);
+
+		layout.id = id;
 		
 		while true {
 				line, found := consume_next_line(*handler);
@@ -481,25 +451,80 @@ parse_layout_object :: (handler: Text_File_Handler, id: string, depth := 0) -> b
 		info := type_info(Layout);
 		for info.members {
 				success, str_value := table_find(*data, it.name);
-				field := get_field(info, it.name);
-				if !success || !field continue;
-				
-				if field.type.type == {
-						case UNTYPED_ENUM; #through;
-						case .ENUM; {
-								enum_info := cast(*Type_Info_Enum)field.type;
-								if !enum_info continue;
-								upper_name := to_upper_copy(it.name);
-								enum_value, ok := enum_name_to_value(type_of())
-
-								print("% is an enum, value is %\n", it.name);
-						}
-				}
+				if !success continue;
+				success = assign_field_from_string(*layout.layout, it.name, str_value);
+				if !success log_error("Fail");
 		}
 
 		layout.children = children;
 
 		return object_finished, layout;
+}
+
+assign_field_from_string :: (s: *$T, field_name: string, value: string) -> bool {
+		info := cast(*Type_Info_Struct) type_info(T);
+		field := get_field(info, field_name);
+
+		if field.type.type == {
+				case .UNTYPED_ENUM; #through;
+				case .ENUM; {
+						enum_info := cast(*Type_Info_Enum)field.type;
+						if !enum_info return false;
+						lower_name := to_lower_copy(value);
+						found := -1;
+						for enum_info.names {
+								if to_lower_copy(it) == lower_name {
+										found = it_index;
+										break;
+								}
+						}
+						if found <= -1 return false;
+						enum_value := enum_info.values[found];
+						memcpy(
+								(cast(*u8) s) + field.offset_in_bytes,
+										*enum_value,
+								field.type.runtime_size
+						);
+				}
+				case .INTEGER;
+				int_value : float;
+				success := set_value_from_string(int_value, *value);
+				if success {
+						memcpy(
+								(cast(*u8) s) + field.offset_in_bytes,
+								(cast(*u8) *int_value),
+								field.type.runtime_size
+						);
+				}
+				case .FLOAT;
+				float_value : float;
+				success := set_value_from_string(float_value, *value);
+				if success {
+						memcpy(
+								(cast(*u8) s) + field.offset_in_bytes,
+								(cast(*u8) *float_value),
+								field.type.runtime_size
+						);
+				}
+				case .BOOL;
+				bool_value : float;
+				success := set_value_from_string(bool_value, *value);
+				if success {
+						memcpy(
+								(cast(*u8) s) + field.offset_in_bytes,
+								(cast(*u8) *bool_value),
+								field.type.runtime_size
+						);
+				}
+				case .STRING;
+				assert(false, "Todo");
+				// memcpy(
+				// 		(cast(*u8) s) + field.offset_in_bytes,
+				// 		(cast(*u8) *bool_value),
+				// 		field.type.runtime_size
+				// );
+		}
+		return true;
 }
 
 #scope_file
@@ -515,3 +540,4 @@ Input :: #import "Input";
 #import "GetRect_LeftHanded";
 #import "Hash_Table";
 #import "Random";
+#import "Reflection";
