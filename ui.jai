@@ -216,8 +216,11 @@ compute_layout :: (parent: Layout, children: .. *Layout) {
 
 		empty_space := remaining_size - fill_size * fill_children;
 
-		// Calculate offset for children_alignment
-		if parent.kind == {
+		if parent.auto_children_gap {
+				gap_size = empty_space / (children.count - 1);
+				empty_space = 0;
+		}
+		else if parent.kind == {
 				case .Horizontal;
 				if empty_space > 0 if parent.h_children_alignment == {
 						case .Right; parent_rect.x += empty_space;
@@ -287,7 +290,7 @@ my_ui_init :: () {
 				kind = .Horizontal,
 				padding_top = 24,
 				v_children_alignment = .Center,
-				children_gap = 30
+				auto_children_gap = true,
 		};
 		compute_layout(root_layout, *subwindow_layout);
 
@@ -320,7 +323,6 @@ draw_subwindow :: (state: *Subwindow_State, r: Rect, data: *void) {
 				y= 32,
 				width = 128,
 				height = 32,
-				h_sizing = .Fill,
 		};
 		compute_layout(subwindow_layout, *btn_layout, *btn_layout2, *btn_layout3);
 		button(btn_layout.rect, "One");
