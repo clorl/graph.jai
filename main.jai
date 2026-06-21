@@ -1,6 +1,7 @@
 #load "ui.jai";
 #load "draw.jai";
 #load "graph.jai";
+#load "solitaire.jai";
 
 loop :: () -> bool {
 
@@ -82,6 +83,9 @@ init :: (first_init := false) {
 }
 
 main :: () {
+		wip();
+		exit(0);
+
 		frame_last_time := seconds_since_init();
 		#if OS == .WINDOWS {
 				Windows :: #import "Windows";

@@ -1,8 +1,86 @@
 #scope_file
 initted := false;
-sub: Subwindow_Info;
+subwindow_layout := Layout.{};
+subwindow_info: Subwindow_Info;
 
 #scope_export
+
+my_ui_init :: () {
+		using Graphics_Settings;
+
+		root_layout := Layout.{
+				rect = get_rect(0, 0, xx win_width, xx win_height)
+		};
+
+		using subwindow_info;
+		subwindow_layout = Layout.{
+				rect = get_rect(24, 24, 400, 400),
+				kind = .Vertical,
+				padding_top = 24,
+				h_children_alignment = .Center
+		};
+		compute_layout(root_layout, *subwindow_layout);
+
+		rect = subwindow_layout.rect;
+		draw = draw_subwindow;
+		title_text = "Subwindow";
+		open = true;
+}
+
+draw_subwindow :: (state: *Subwindow_State, r: Rect, data: *void) {
+		slider_container: Layout = .{
+				h_sizing = .Fill,
+				min_height = 32,
+				kind = .Horizontal,
+				children_gap = 12,
+				h_children_alignment = .Center,
+				v_children_alignment = .Center,
+		};
+		slider_label: Layout = .{
+				h_sizing = .Fill,
+				v_sizing = .Fill
+		};
+		slider_layout := slider_label;
+
+		lay2 : Layout = .{
+				h_sizing = .Fill
+		};
+		lay3 : Layout = .{
+				h_sizing = .Fill
+		};
+
+		compute_layout(subwindow_layout, *slider_container, *lay2, *lay3);
+		compute_layout(slider_container, *slider_label, *slider_layout);
+
+		slider_value: int;
+		theme: Slider_Theme;
+		label_theme: Label_Theme;
+		slider(slider_layout.rect, *slider_value, 0, 10, 1, *theme);
+		label(slider_label.rect, "Some Slider", *label_theme);
+		button(lay2.rect, "Two");
+		button(lay3.rect, "Three");
+}
+
+draw_ui :: () {
+		if !initted {
+				my_ui_init();
+				initted = true;
+		}
+
+		w : float = xx Graphics_Settings.win_width;
+		h : float = xx Graphics_Settings.win_height;
+
+		root_layout := Layout.{
+				rect = get_rect(0, 0, w, h),
+		};
+
+		subwindow_layout.rect = subwindow_info.rect;
+		compute_layout(root_layout, *subwindow_layout);
+		add_subwindow(*subwindow_info);
+		draw_popups();
+}
+
+// Everything below should probably be a module
 
 Alignment :: enum u8 {
 		Begin	:: 1;
@@ -273,100 +351,6 @@ compute_layout :: (parent: Layout, children: .. *Layout) {
 		}
 }
 
-subwindow_layout := Layout.{};
-v_scroll: float;
-my_ui_init :: () {
-		w :float = xx Graphics_Settings.win_width;
-		h :float = xx Graphics_Settings.win_height;
-
-		root_layout := Layout.{
-				rect = get_rect(0, 0, w, h)
-		};
-
-		using sub;
-		subwindow_layout = Layout.{
-				rect = get_rect(20, 20, 200, 100),
-				kind = .Free,
-				padding_top = 24,
-				v_children_alignment = .Center,
-		};
-		compute_layout(root_layout, *subwindow_layout);
-
-		rect = subwindow_layout.rect;
-		draw = draw_subwindow;
-		title_text = "Subwindow";
-		open = true;
-
-		l := Layout.{};
-}
-
-draw_subwindow :: (state: *Subwindow_State, r: Rect, data: *void) {
-		container_layout : Layout = .{
-				kind = .Horizontal,
-				v_constraint = .Fill,
-				h_constraint = .Fill,
-				x = 50,
-				y = 50,
-				width = 100,
-				offset_y = 50,
-		};
-
-		compute_layout(subwindow_layout, *container_layout);
-		{
-				using container_layout;
-				Simp.immediate_quad(x, y, x + width, y + height, Vector4.{1,1,1,1});
-				Simp.immediate_flush();
-		}
-		
-
-		btn_layout : Layout = .{
-				x = 32,
-				y= 32,
-				width = 128,
-				height = 32,
-				min_height = 64,
-		};
-		btn_layout2 : Layout = .{
-				x = 32,
-				y= 32,
-				width = 128,
-				height = 32,
-				min_width = 100,
-				max_width = 300,
-		};
-		btn_layout3: Layout = .{
-				x = 32,
-				y= 32,
-				width = 128,
-				height = 32,
-		};
-		compute_layout(container_layout, *btn_layout, *btn_layout2, *btn_layout3);
-		push_scissor(container_layout.rect);
-		button(btn_layout.rect, "One");
-		button(btn_layout2.rect, "Two");
-		button(btn_layout3.rect, "Three");
-		pop_scissor();
-}
-
-draw_ui :: () {
-		if !initted {
-				my_ui_init();
-				initted = true;
-		}
-
-		w : float = xx Graphics_Settings.win_width;
-		h : float = xx Graphics_Settings.win_height;
-
-		root_layout := Layout.{
-				rect = get_rect(0, 0, w, h),
-		};
-
-		subwindow_layout.rect = sub.rect;
-		compute_layout(root_layout, *subwindow_layout);
-		add_subwindow(*sub);
-
-		draw_popups();
-}
 
 Stored_Layout :: struct {
 		id: string;
