@@ -17,6 +17,12 @@ build :: () {
 				for paths {
 						compiler_add_library_search_directory(it);
 				}
+
+				paths = split(to_string(getenv("C_INCLUDE_PATH")), ":");
+				print("%\n", paths);
+				// for paths {
+				// 		array_add(*include_paths, it);
+				// }
 		}
 
 		compiler_begin_intercept(w);

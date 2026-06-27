@@ -13,6 +13,7 @@
 				};
 			};
       libs = with pkgs; [
+					 pkgs.stdenv.cc.cc.lib
           libX11
           libXext
           libXcursor
@@ -45,6 +46,7 @@
 				 program = let
 				 wrappedApp = pkgs.writeShellScriptBin "compile" ''
 					export LD_LIBRARY_PATH="${env}/lib:/run/opengl-driver/lib:/run/opengl-driver-32/lib:$LD_LIBRARY_PATH"
+					export C_INCLUDE_PATH="${pkgs.glibc.dev}/include:$C_INCLUDE_PATH"
 					jai "$@"
 				 '';
 				 in "${wrappedApp}/bin/compile";

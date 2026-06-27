@@ -112,6 +112,53 @@ draw_circle :: (pos: Vector2, diameter := 1.0, color := WHITE, filled := true, q
 		inline draw_polygon(pos, diameter, sides, color, filled);
 }
 
+draw_point :: (pos: Vector2, color := RED) {
+		draw_circle(pos, color = color, diameter = .1);
+}
+
+draw_rect :: (r: Rect, color := WHITE) {
+		t := context.transform;
+
+		top_left: Vector2;
+		bot_right: Vector2;
+		{
+				using r;
+				top_left = t * .{x, y};
+				bot_right = t * .{x + w, y + h};
+		}
+		
+		immediate_quad(
+				top_left.x, top_left.y,
+				bot_right.x, bot_right.y,
+				color
+		);
+}
+
+draw_texture_centered :: (using tex: *Simp.Texture, position := Vector2.{0,0}, scale := 1.0, tint := WHITE) {
+		assert(scale > 0);
+		t := context.transform;
+		fac := scale / 2.0;
+		vec := Vector2.{xx width * fac, xx height * fac};
+
+		start := (t * position) - vec;
+		end := (t * position) + vec;
+
+		using Simp;
+		set_shader_for_images(tex);
+		defer set_shader_for_color();
+
+		immediate_begin();
+		defer immediate_flush();
+
+		immediate_quad(
+				start,
+				Vector2.{end.x, start.y},
+				end,
+				Vector2.{start.x, end.y},
+				tint
+		);
+}
+
 Transform2D :: struct {
 		basis := Matrix2_Identity;
 		origin := Vector2.{0, 0};
@@ -177,6 +224,7 @@ operator * :: (t1: Transform2D, t2: Transform2D) -> Transform2D {
 
 WHITE :: Vector4.{1,1,1,1};
 NOCOLOR :: Vector4.{0, 0, 0, 0};
+RED :: Vector4.{1, .2, .2, 1};
 PI :: 3.1415926535;
 TAU :: 2.0 * PI;
 

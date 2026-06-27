@@ -160,4 +160,4 @@ graph_apply_physics :: (using g: *Graph, iterations := 1, ideal_node_distance :=
 
 #import "Basic";
 #import "Math";
-Simp :: #import "Simp";
+Simp :: #import "Graphics";
